@@ -14,8 +14,7 @@ import jakarta.servlet.http.*;
 import mg.annotation.AnnotationController;
 
 public class FrontController extends HttpServlet{
-    boolean checked = false;
-    List<Class<?>> ls;
+    HashMap<String,Mapping> hashMap;
 
     public void init() throws ServletException {
         super.init();
@@ -23,15 +22,14 @@ public class FrontController extends HttpServlet{
     }
 
     private void scan(){
-        if (!checked) {
-            String pack = this.getInitParameter("controllerPackage");
-            try {
-                ls = getClassesInPackage(pack);
-                checked = true;
-            } catch (Exception e) {
-                e.printStackTrace();
-                ls = new ArrayList<>();
-            }
+        String pack = this.getInitParameter("controllerPackage");
+        try {
+            List<Class<?>> ls = getClassesInPackage(pack);
+            hashMap = initializeHashMap(ls);
+        } catch (Exception e) {
+            e.printStackTrace();
+            // ls = new ArrayList<>();
+            hashMap = new HashMap<>();
         }
     }
 
@@ -62,17 +60,42 @@ public class FrontController extends HttpServlet{
         return classes;
     }
 
+    HashMap<String, Mapping> initializeHashMap(List<Class<?>> ls){
+        HashMap<String, Mapping> map = new HashMap<>();
+        for (Class<?> class1 : ls) {
+            Method[] methods = class1.getDeclaredMethods();
+            for (Method m : methods) {
+                if (m.isAnnotationPresent(Get.class)) {
+                    Mapping mapping = new Mapping();
+                    mapping.classe = class1.getSimpleName();
+                    mapping.methode = m.getName();
+                    Get annotation = m.getAnnotation(Get.class);
+                    map.put(annotation.url(), mapping);
+                }
+            }
+        }
+
+        return map;
+    }
+
+    String extract(String uri) {
+        String[] segments = uri.split("/");
+        if (segments.length > 1) {
+            return String.join("/", java.util.Arrays.copyOfRange(segments, 2, segments.length));
+        }
+        return "";
+    }
+
     protected void processRequest(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
         response.setContentType("text/plain");
         try (PrintWriter out = response.getWriter()) {
-            // out.println("URL: "+request.getRequestURL());
-            out.println("Liste des Controllers:");
-            if (ls.isEmpty()) {
-                out.println("La liste est vide.");
-            }
-            for (int i = 0; i < ls.size(); i++) {
-                out.println((i+1)+": "+ls.get(i));
+            String uri = extract(request.getRequestURI());
+            Mapping m = hashMap.get(uri);
+            if (m == null) {
+                out.println("Aucun controller n'a de fonction nommée: "+uri);
+            }else{
+                out.println("Le controller correspondant a votre url est: "+m.classe);
             }
         }
     }

@@ -3,10 +3,12 @@ package mg.itu.prom16;
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.lang.reflect.Method;
 import java.net.URL;
 import java.net.URLDecoder;
 import java.util.ArrayList;
 import java.util.Enumeration;
+import java.util.HashMap;
 import java.util.List;
 
 import jakarta.servlet.*;
@@ -95,7 +97,14 @@ public class FrontController extends HttpServlet{
             if (m == null) {
                 out.println("Aucun controller n'a de fonction nommée: "+uri);
             }else{
-                out.println("Le controller correspondant a votre url est: "+m.classe);
+                // out.println("Le controller correspondant a votre url est: "+m.classe);
+                try {
+                    Object obj=Class.forName(this.getInitParameter("controllerPackage")+"."+m.classe).newInstance();
+                    out.println(obj.getClass().getDeclaredMethod(m.methode).invoke(obj));
+                } catch (Exception e) {
+                    out.println(e.getMessage());
+                    // TODO: handle exception
+                }
             }
         }
     }

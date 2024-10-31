@@ -12,7 +12,7 @@ public class ModelView {
         return url;
     } 
     public void setData(HashMap<String, Object> data) {
-        this.data = data;
+        this.data = data; 
     }public void setUrl(String url) {
         this.url = url;
     }

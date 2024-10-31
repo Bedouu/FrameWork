@@ -10,12 +10,13 @@ import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.List;
-import jakarta.servlet.RequestDispatcher;
-import jakarta.servlet.ServletContext;
+
+import javax.naming.directory.InvalidAttributesException;
+
 import jakarta.servlet.*;
 import jakarta.servlet.http.*;
 import mg.itu.prom16.utils.*;
-import mg.itu.prom16.classes.*;
+import mg.itu.prom16.classes.*; 
 import mg.itu.prom16.annotation.*;
 
 public class FrontController extends HttpServlet{
@@ -48,6 +49,9 @@ public class FrontController extends HttpServlet{
                     for (Method m : allMethods) {
                         if (m.isAnnotationPresent(Get.class)) {
                             Get mGetAnnotation = (Get) m.getAnnotation(Get.class);
+                            if(urls.containsKey(mGetAnnotation.url())){
+                                throw new InvalidAttributesException("The url "+mGetAnnotation.url()+" is duplicated.");
+                            }
                             System.out.println(m.getName()+"jngngngngnngng");
                             urls.put(mGetAnnotation.url(), new Mapping(classe.getName(), m.getName()));
                         }
@@ -70,7 +74,23 @@ public class FrontController extends HttpServlet{
 
         File directory = new File(realPath);
         File[] files = directory.listFiles();
-
+        // Gerer les erreurs 
+        if(!directory.exists()){
+            try {
+                throw new InvalidAttributesException("The package "+packageName+" does not exist.");
+            } catch (InvalidAttributesException e) {
+                // TODO Auto-generated catch block
+                e.printStackTrace();
+            }
+        }
+        else if(files.length <= 0){
+            try {
+                throw new InvalidAttributesException("The package "+packageName+" is empty.");
+            } catch (InvalidAttributesException e) {
+                // TODO Auto-generated catch block
+                e.printStackTrace();
+            }
+        }
         for(File f : files) {
             // filtering class files
             if(f.isFile() && f.getName().endsWith(".class")) {
@@ -175,6 +195,7 @@ public class FrontController extends HttpServlet{
                 }
             } catch (Exception e) {
                 out.println(e.getMessage());
+
             }
             
         } else {

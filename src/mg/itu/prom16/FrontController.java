@@ -4,6 +4,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.lang.reflect.Method;
+import java.lang.reflect.Parameter;
 import java.net.URL;
 import java.net.URLDecoder;
 import java.util.ArrayList;
@@ -145,22 +146,22 @@ public class FrontController extends HttpServlet{
         return classes;
     }
 
-    HashMap<String, Mapping> initializeHashMap(List<Class<?>> ls){
-        HashMap<String, Mapping> map = new HashMap<>();
-        for (Class<?> class1 : ls) {
-            Method[] methods = class1.getDeclaredMethods();
-            for (Method m : methods) {
-                if (m.isAnnotationPresent(Get.class)) {
-                    Mapping mapping = new Mapping(class1.getSimpleName(), m.getName());
+    // HashMap<String, Mapping> initializeHashMap(List<Class<?>> ls){
+    //     HashMap<String, Mapping> map = new HashMap<>();
+    //     for (Class<?> class1 : ls) {
+    //         Method[] methods = class1.getDeclaredMethods();
+    //         for (Method m : methods) {
+    //             if (m.isAnnotationPresent(Get.class)) {
+    //                 Mapping mapping = new Mapping(class1.getSimpleName(), m.getName());
 
-                    Get annotation = m.getAnnotation(Get.class);
-                    map.put(annotation.url(), mapping);
-                }
-            }
-        }
+    //                 Get annotation = m.getAnnotation(Get.class);
+    //                 map.put(annotation.url(), mapping);
+    //             }
+    //         }
+    //     }
 
-        return map;
-    }
+    //     return map;
+    // }
 
     String extract(String uri) {
         String[] segments = uri.split("/");
@@ -169,42 +170,65 @@ public class FrontController extends HttpServlet{
         }
         return "";
     }
-
-    public void processRequest(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
+public void processRequest(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
         resp.setContentType("text/plain");
-
         PrintWriter out = resp.getWriter();
+        try {
+            // getting the URL requested
+            String requestedURL = req.getRequestURL().toString();
+            String[] partedReq = requestedURL.split("/");
+            String urlToSearch = partedReq[partedReq.length - 1];  
+            System.out.println(requestedURL);  
 
-        // getting the URL requested by the client
-        String requestedURL = req.getRequestURL().toString();
-        String[] partedReq = requestedURL.split("/");
-        String urlToSearch = partedReq[partedReq.length - 1];
-        
-        // searching for that URL inside of our HashMap
-        if(urlMapping.containsKey(urlToSearch)) {
-            Mapping m = urlMapping.get(urlToSearch);
-            try {
-                Object result = m.invoke();
+            // Finding the url dans le map
+            if(urlMapping.containsKey(urlToSearch)) {
+                Mapping m = urlMapping.get(urlToSearch);
+                Parameter[] params = null;
+                String[] args = null;
+
+                if(m.getParameters() != null) {
+                    System.out.println(m.getParameters());
+
+                    // Retrieve the parameters of the method from the request first 
+                    params = m.getParameters();
+                    args = new String[params.length];
+                    int i = 0;
+                    for (Parameter param : params) {
+                        String paramString = req.getParameter(param.getName());
+                        if(paramString != null){
+                            args[i] = req.getParameter(param.getName());
+                        } else {
+                            String paramName = param.getAnnotation(Param.class).name();
+                            args[i] = req.getParameter(paramName);
+                        }
+                    }
+                }
+                
+                // Invoking the method 
+                Object result = m.invoke(args);
                 if (result instanceof String){
                     out.println(result);
                 } else if (result instanceof ModelView){
                     ModelView view = (ModelView)result; 
                     req.setAttribute("attribut", view.getData());
+
                     RequestDispatcher dispatcher = req.getRequestDispatcher(view.getUrl());
                     dispatcher.forward(req, resp);
                 }
-            } catch (Exception e) {
-                out.println(e.getMessage());
 
+                
+            } else {
+                out.println("No method matching '" + urlToSearch + "' to call");
             }
             
-        } else {
-            out.println("La methode n'existe pas " + urlToSearch );
+            out.flush();
+            out.close();
+        } catch (Exception e) {
+            e.printStackTrace();
+            out.println(e.getMessage()+"   exccc");
         }
-
-        out.flush();
-        out.close();
     }
+
 
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
